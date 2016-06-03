@@ -81,4 +81,10 @@ public class Neighbour {
 			
 		return isNewShortestLink;
 	}
+	public void DeadNode(char node){
+		
+		paths.clear();
+		shortestLength = -1;
+		portN = -1;
+	}
 }

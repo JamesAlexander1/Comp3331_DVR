@@ -97,7 +97,7 @@ public class Dvr{
 					int neighbourLink = Integer.parseInt(neighbourData[1]);
 					int neighbourPortNum = Integer.parseInt(neighbourData[2]);
 					neighbours.put(neighbourName, new Neighbour(neighbourName, neighbourLink, neighbourPortNum));
-					//minDist.put(neighbourName, neighbourLink);
+					
 				}
 				
 				reader.close();
@@ -131,6 +131,7 @@ public class Dvr{
 				String received = new String(packet.getData(), 0, packet.getLength());
 				System.out.println("recieved: " + received);
 				updateDV(received);
+				printDV();
 				
 				temp ++;
 			}
@@ -155,13 +156,7 @@ public class Dvr{
 				//System.out.println("message received from: "  + s);
 					char fromNode = receivedM[0].charAt(0);
 					String[] distV = receivedM[1].split(":");
-					for(String s3 : distV){
-					//	System.out.print(s3 + ".");
-						//System.out.println();
-					}
-					System.out.println();
-					//char fromNode = distV[0].charAt(0);
-					//System.out.println("node that sent this datagram: " + fromNode);
+					
 					for(String s2 : distV){
 						if(! s2.equals("")){
 							//System.out.println("s2 = " + s2);
@@ -179,11 +174,10 @@ public class Dvr{
 								if(! neighbours.containsKey(node)){
 									neighbours.put(node, new Neighbour(node, distToNode, -1));
 								}
-								//case 2: node is known.
+								//case 2: node is known. /// node
 								Neighbour n = neighbours.get(node);
-								//int distToNode = distToNode + n)
-								//isNewShortest = 
-								if(isNewShortest = n.checkAndAdd(node, distToNode)){
+								
+								if(isNewShortest = n.checkAndAdd(fromNode, distToNode)){
 									updateMinDist = true;
 								}
 							}
