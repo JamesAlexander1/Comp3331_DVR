@@ -10,9 +10,14 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Hashtable;
+import java.util.Timer;
 import java.util.Map.Entry;
 
-public class Dvr {
+
+
+import java.util.TimerTask;
+
+public class Dvr{
 
 	private char nodeN;
 	private int portN;
@@ -43,7 +48,18 @@ public class Dvr {
 		}
 	}
 	
-	
+	public Hashtable<Character, Neighbour> getNeighbours(){
+		return neighbours;
+	}
+	public DatagramSocket getSocket(){
+		return socket;
+	}
+	public int getPortNum(){
+		return portN;
+	}
+	public char getName(){
+		return nodeN;
+	}
 	public boolean loadFile() throws IOException{
 		
 		//create seperate method for poison reverse (i.e 2 values);
@@ -92,16 +108,22 @@ public class Dvr {
 		
 		socket = new DatagramSocket(portN);
 		BufferedReader fromStdin = new BufferedReader(new InputStreamReader(System.in));
-		
+		TimerTask dvrTimer = new DvrTimer(this);
+		Timer timer = new Timer(true);
+		timer.scheduleAtFixedRate(dvrTimer , 10000 , 10000);
 		try{
 			String commands;
-			while(!(commands = fromStdin.readLine()).equals("end")){
+			int temp = 0;
+			while(temp < 10){
 				
 				//sending out data to neighbours
-				if(commands.equals("send")){
-					SendDV();
-				}
-				
+				//if(commands.equals("send")){
+					//sendDV();
+				//}
+				/*commands = fromStdin.readLine();
+				if(commands.equals("end")){
+					break;
+				}*/
 				byte[] buffer = new byte[256];
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 				
@@ -109,7 +131,12 @@ public class Dvr {
 				System.out.println("waiting on packets....");
 				socket.receive(packet);
 				String received = new String(packet.getData(), 0, packet.getLength());
-				System.out.println("message recieved from: " + packet.getPort() + " : " + received);
+				String[] receivedM = received.split("/");
+				for ( String s : receivedM){
+					System.out.println("message recieved from: "  + s);
+				}
+				//System.out.println("message recieved from: "  + received);
+				temp ++;
 			}
 			socket.close();
 		}catch(IOException e){
@@ -117,29 +144,34 @@ public class Dvr {
 		}
 	}
 	
-	public void SendDV() throws UnknownHostException{
+	
+	
+	public void sendDV(){
 		StringBuilder builder = new StringBuilder();
 		try{
-			for(Entry<Character, Neighbour> current : neighbours.entrySet()){
-				int portNum = current.getValue().getPortNum();
-				String message = builder.append(nodeN + " on " + portN + " with distance: " + current.getValue().getLinkLength()).toString();
+			//String message = "/" + this.nodeN;
+			builder.append("/" + this.nodeN);
+			int portNum = -1;
+			for(Entry<Character, Neighbour> current : this.getNeighbours().entrySet()){
+				portNum = current.getValue().getPortNum();
+				//message = builder.append("/" + nodeN + " on " + portN + " with distance " + current.getValue().getLinkLength()).toString() + " to " + current.getValue().getName() + " | ";
+				//builder.append(" ->" + current.getValue().getName());
+				String message = builder.toString();
 				byte[] buffer = message.getBytes();
 				//InetAddress address = 127.0.0.1;
 				InetAddress address = InetAddress.getLocalHost();
 				DatagramPacket sendPacket = new DatagramPacket(buffer, buffer.length, address, portNum);
-				
-				try {
-					socket.send(sendPacket);
-					System.out.println("message sent successfully");
-				} catch (IOException e) {
-					
-					e.printStackTrace();
-				}
-			}
-			System.out.println("sending concluded");
-		}catch(UnknownHostException e){
+				socket.send(sendPacket);
+				System.out.println("message sent successfully");
+			}	
+		}catch (IOException e) {
+			
 			e.printStackTrace();
 		}
+			
+		System.out.println("sending concluded");
+		
+		
 	}
 	
 	
@@ -150,6 +182,8 @@ public class Dvr {
 		String fileName = args[2];
 		System.out.println(nodeName + " " + portNum + " " + fileName);
 		Dvr node = new Dvr(nodeName, portNum, fileName);
+		//Dvr node = new Dvr(nodeName, portNum, fileName);
+		
 		System.out.println("running dvr");
 		node.runDvr();
 		
