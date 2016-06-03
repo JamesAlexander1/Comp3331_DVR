@@ -9,6 +9,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Timer;
 import java.util.Map.Entry;
@@ -23,7 +24,9 @@ public class Dvr{
 	private int portN;
 	private String fileN;
 	private Hashtable<Character, Neighbour> neighbours;
+	//private Hashtable<Character, Integer> minDist;
 	private DatagramSocket socket;
+	
 	
 	public Dvr(char nodeName, int portNum, String fileName) throws IOException{
 		
@@ -31,6 +34,7 @@ public class Dvr{
 		portN = portNum;
 		fileN = fileName;
 		neighbours = new Hashtable<Character, Neighbour>();
+		//minDist = new Hashtable<Character, Integer>();
 		
 		try{
 			if(! loadFile()){
@@ -38,7 +42,7 @@ public class Dvr{
 			}else{
 				
 				for(Entry<Character, Neighbour> current : neighbours.entrySet()){
-					System.out.println("neighbour:" + current.getKey() + " : " + current.getValue().getLinkLength() + " : " + current.getValue().getPortNum());
+					System.out.println("neighbour:" + current.getValue().getName() + " : " + current.getValue().getLinkLength() + " : " + current.getValue().getPortNum());
 				
 				}
 				System.out.println("Constructor closing");
@@ -48,7 +52,7 @@ public class Dvr{
 		}
 	}
 	
-	public Hashtable<Character, Neighbour> getNeighbours(){
+	public Hashtable< Character, Neighbour> getNeighbours(){
 		return neighbours;
 	}
 	public DatagramSocket getSocket(){
@@ -60,6 +64,7 @@ public class Dvr{
 	public char getName(){
 		return nodeN;
 	}
+	
 	public boolean loadFile() throws IOException{
 		
 		//create seperate method for poison reverse (i.e 2 values);
@@ -92,8 +97,9 @@ public class Dvr{
 					int neighbourLink = Integer.parseInt(neighbourData[1]);
 					int neighbourPortNum = Integer.parseInt(neighbourData[2]);
 					neighbours.put(neighbourName, new Neighbour(neighbourName, neighbourLink, neighbourPortNum));
-					
+					//minDist.put(neighbourName, neighbourLink);
 				}
+				
 				reader.close();
 				return true;
 				
@@ -114,16 +120,8 @@ public class Dvr{
 		try{
 			String commands;
 			int temp = 0;
-			while(temp < 10){
+			while(temp < 5){
 				
-				//sending out data to neighbours
-				//if(commands.equals("send")){
-					//sendDV();
-				//}
-				/*commands = fromStdin.readLine();
-				if(commands.equals("end")){
-					break;
-				}*/
 				byte[] buffer = new byte[256];
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 				
@@ -131,39 +129,100 @@ public class Dvr{
 				System.out.println("waiting on packets....");
 				socket.receive(packet);
 				String received = new String(packet.getData(), 0, packet.getLength());
-				String[] receivedM = received.split("/");
-				for ( String s : receivedM){
-					System.out.println("message recieved from: "  + s);
-				}
-				//System.out.println("message recieved from: "  + received);
+				System.out.println("recieved: " + received);
+				updateDV(received);
+				
 				temp ++;
 			}
-			socket.close();
+			//printDV();
+			
 		}catch(IOException e){
 			e.printStackTrace();
+		}finally{
+			printDV();
+			socket.close();
 		}
 	}
 	
-	
+	public void updateDV(String received) throws IndexOutOfBoundsException {
+		
+		try{
+			String[] receivedM = received.split("/");
+			boolean updateMinDist = false;
+			for ( String s : receivedM){
+				
+				if(! s.equals("")){
+				//System.out.println("message received from: "  + s);
+					char fromNode = receivedM[0].charAt(0);
+					String[] distV = receivedM[1].split(":");
+					for(String s3 : distV){
+					//	System.out.print(s3 + ".");
+						//System.out.println();
+					}
+					System.out.println();
+					//char fromNode = distV[0].charAt(0);
+					//System.out.println("node that sent this datagram: " + fromNode);
+					for(String s2 : distV){
+						if(! s2.equals("")){
+							//System.out.println("s2 = " + s2);
+							String[] nodeValues = s2.split(" ");
+							char node = nodeValues[0].charAt(0);
+							int distToNode = Integer.parseInt(nodeValues[1]);
+							//System.out.println(node + ":" + distToNode);
+							
+							///pass to neighbour class // compute
+							distToNode = distToNode + neighbours.get(fromNode).getLinkLength();
+							
+							boolean isNewShortest = false;
+							if(node != nodeN){
+								//case 1: node just discovered
+								if(! neighbours.containsKey(node)){
+									neighbours.put(node, new Neighbour(node, distToNode, -1));
+								}
+								//case 2: node is known.
+								Neighbour n = neighbours.get(node);
+								//int distToNode = distToNode + n)
+								//isNewShortest = 
+								if(isNewShortest = n.checkAndAdd(node, distToNode)){
+									updateMinDist = true;
+								}
+							}
+						}
+					}
+				}
+			}
+			System.out.println("update complete");
+		}catch(IndexOutOfBoundsException e){
+			e.printStackTrace();
+		}
+	}
 	
 	public void sendDV(){
 		StringBuilder builder = new StringBuilder();
 		try{
 			//String message = "/" + this.nodeN;
-			builder.append("/" + this.nodeN);
+			builder.append(this.nodeN + "/");
 			int portNum = -1;
+			
 			for(Entry<Character, Neighbour> current : this.getNeighbours().entrySet()){
-				portNum = current.getValue().getPortNum();
-				//message = builder.append("/" + nodeN + " on " + portN + " with distance " + current.getValue().getLinkLength()).toString() + " to " + current.getValue().getName() + " | ";
-				//builder.append(" ->" + current.getValue().getName());
-				String message = builder.toString();
-				byte[] buffer = message.getBytes();
-				//InetAddress address = 127.0.0.1;
-				InetAddress address = InetAddress.getLocalHost();
-				DatagramPacket sendPacket = new DatagramPacket(buffer, buffer.length, address, portNum);
-				socket.send(sendPacket);
-				System.out.println("message sent successfully");
-			}	
+				Neighbour n = current.getValue();
+				builder.append(":" + n.getName() + " " + n.getShortestLength());
+			}											//n.getLinkLength
+			for(Entry<Character, Neighbour> current : this.getNeighbours().entrySet()){
+				Neighbour n = current.getValue();
+				portNum = n.getPortNum();
+				
+				//if node in DV is NOT a neighbour
+				if(portNum != -1){
+						
+					String message = builder.toString();
+					byte[] buffer = message.getBytes();
+					InetAddress address = InetAddress.getLocalHost();
+					DatagramPacket sendPacket = new DatagramPacket(buffer, buffer.length, address, portNum);
+					socket.send(sendPacket);
+				}
+			}
+			
 		}catch (IOException e) {
 			
 			e.printStackTrace();
@@ -173,7 +232,18 @@ public class Dvr{
 		
 		
 	}
-	
+	public void printDV(){
+		for(Entry<Character, Neighbour> current : this.getNeighbours().entrySet()){
+			Neighbour n = current.getValue();
+			System.out.print(n.getName());
+			Hashtable <Character, PathObject> paths = n.getPaths();
+			for(Entry<Character, PathObject> currP : paths.entrySet()){
+				System.out.print(" via " + currP.getKey() + " : " + currP.getValue().getDist() + "|");
+			}
+			System.out.println("|shortest: " + n.getShortestLength());
+			
+		}
+	}
 	
 	public static void main(String[] args) throws IOException{
 		
