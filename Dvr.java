@@ -120,7 +120,7 @@ public class Dvr{
 		try{
 			String commands;
 			int temp = 0;
-			while(temp < 5){
+			while(temp < 10){
 				
 				byte[] buffer = new byte[256];
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -157,6 +157,10 @@ public class Dvr{
 					char fromNode = receivedM[0].charAt(0);
 					String[] distV = receivedM[1].split(":");
 					
+					//reseting 'heartbeat' message counter for checking status of neighbours.
+					Neighbour checkNode = neighbours.get(fromNode);
+					checkNode.resetHB();
+					//
 					for(String s2 : distV){
 						if(! s2.equals("")){
 							//System.out.println("s2 = " + s2);
@@ -165,6 +169,11 @@ public class Dvr{
 							int distToNode = Integer.parseInt(nodeValues[1]);
 							//System.out.println(node + ":" + distToNode);
 							
+							//if this node told another node is dead by neighbour, change data.
+							if(distToNode == -1){
+								Neighbour deadNode = neighbours.get(node);
+								deadNode.DeadNode();
+							}
 							///pass to neighbour class // compute
 							distToNode = distToNode + neighbours.get(fromNode).getLinkLength();
 							
@@ -205,10 +214,16 @@ public class Dvr{
 			for(Entry<Character, Neighbour> current : this.getNeighbours().entrySet()){
 				Neighbour n = current.getValue();
 				portNum = n.getPortNum();
-				
+				//n.incrementHB();
 				//if node in DV is NOT a neighbour
 				if(portNum != -1){
+					//increment HB to help check neighbouring nodes are onling.
+					n.incrementHB();
+					if(n.getHB() > 2){
+						System.out.println("heartbeat message counter detected neighbouring node failure : " + n.getName());
+						n.DeadNode();
 						
+					}
 					String message = builder.toString();
 					byte[] buffer = message.getBytes();
 					InetAddress address = InetAddress.getLocalHost();
@@ -251,8 +266,6 @@ public class Dvr{
 		System.out.println("running dvr");
 		node.runDvr();
 		
-		
-		
-		
+			
 	}
 }

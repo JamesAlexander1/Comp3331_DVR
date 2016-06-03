@@ -8,6 +8,7 @@ public class Neighbour {
 	private int directLink;
 	private int secondLength;
 	private int portN;
+	private int heartbeat;
 	
 	//private Hashtable<Character, ArrayList<PathObject>> paths;
 	private Hashtable<Character, PathObject> paths;
@@ -26,6 +27,7 @@ public class Neighbour {
 		portN = aPortN;
 		paths = new Hashtable<Character, PathObject>();
 		paths.put(aName, new PathObject(aName, aLength));
+		heartbeat = 0;
 		//paths.get(aName).put(aName, new PathObject(aName, aLength));
 	}
 	
@@ -81,10 +83,21 @@ public class Neighbour {
 			
 		return isNewShortestLink;
 	}
-	public void DeadNode(char node){
+	public void DeadNode(){
 		
 		paths.clear();
 		shortestLength = -1;
 		portN = -1;
 	}
+	
+	public void incrementHB(){
+		heartbeat ++;
+	}
+	public void resetHB(){
+		heartbeat = 0;
+	}
+	public int getHB(){
+		return heartbeat;
+	}
+	
 }
