@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.Map.Entry;
 
 public class Neighbour {
 
@@ -9,6 +10,7 @@ public class Neighbour {
 	private int secondLength;
 	private int portN;
 	private int heartbeat;
+	private int stableCtr;
 	
 	//private Hashtable<Character, ArrayList<PathObject>> paths;
 	private Hashtable<Character, PathObject> paths;
@@ -28,6 +30,7 @@ public class Neighbour {
 		paths = new Hashtable<Character, PathObject>();
 		paths.put(aName, new PathObject(aName, aLength));
 		heartbeat = 0;
+		stableCtr = 0;
 		//paths.get(aName).put(aName, new PathObject(aName, aLength));
 	}
 	
@@ -46,10 +49,7 @@ public class Neighbour {
 	public Hashtable<Character, PathObject> getPaths(){
 		return paths;
 	}
-	/*public void addNeighbour(char aName, int aLength){
-		paths.put(aName, new ArrayList<PathObject>());
-		paths.get(aName).put(aName, new PathObject(aName, aLength));
-	}*/
+	
 	public boolean checkAndAdd(char node, int length){
 		
 		boolean isNewShortestLink = false;
@@ -62,6 +62,10 @@ public class Neighbour {
 				shortestLength = length;
 				isNewShortestLink = true;
 			}
+			if(shortestLength != -1){
+				stableCtr = 0;
+			}
+			//stableCtr = 0;
 			
 		}else{
 		//case 2: path Object from current node to argument node exists:
@@ -74,20 +78,33 @@ public class Neighbour {
 				if(length < shortestLength){
 					shortestLength = length;
 					isNewShortestLink = true;
+					
+					//stableCtr = 0;
+				}
+				if(shortestLength != -1){
+					stableCtr = 0;
 				}
 			}else{
 				//case 2.2: do nothing.
+				if(stableCtr < 4){
+					stableCtr ++;
+				}
 			}
 			
 		}
 			
 		return isNewShortestLink;
 	}
-	public void DeadNode(){
-		
-		paths.clear();
-		shortestLength = -1;
-		portN = -1;
+	public boolean DeadNode(){
+		if(shortestLength != -1){
+			paths.clear();
+			shortestLength = -1;
+			portN = -1;
+			System.out.println("ctr:" + stableCtr);
+			return true;
+		}else{
+			return false;
+		}
 	}
 	
 	public void incrementHB(){
@@ -99,5 +116,35 @@ public class Neighbour {
 	public int getHB(){
 		return heartbeat;
 	}
-	
+	public int getStableCtr(){
+		return stableCtr;
+	}
+	public void removeDeadNodes(char aName){
+		/*for( Entry<Character, PathObject> current: paths.entrySet()){
+			PathObject p = current.getValue();
+			
+				
+			Character temp = p.getViaNode();
+			if(temp.equals(aName)){
+			 paths.r
+			}
+		}*/
+		paths.remove(aName);
+		replaceShortestDist();
+		
+	}
+	public void replaceShortestDist(){
+		int shortestDistance = 0;
+		for( Entry<Character, PathObject> current: paths.entrySet()){
+			PathObject p = current.getValue();
+			if(shortestDistance == 0){
+				shortestDistance = p.getDist();
+			}else{
+				if(p.getDist() < shortestDistance){
+					shortestDistance = p.getDist();
+				}
+			}
+		}
+		shortestLength = shortestDistance;
+	}
 }

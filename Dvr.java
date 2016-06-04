@@ -26,7 +26,7 @@ public class Dvr{
 	private Hashtable<Character, Neighbour> neighbours;
 	//private Hashtable<Character, Integer> minDist;
 	private DatagramSocket socket;
-	
+	private boolean hasReturnedDV;
 	
 	public Dvr(char nodeName, int portNum, String fileName) throws IOException{
 		
@@ -34,6 +34,7 @@ public class Dvr{
 		portN = portNum;
 		fileN = fileName;
 		neighbours = new Hashtable<Character, Neighbour>();
+		hasReturnedDV = false;
 		//minDist = new Hashtable<Character, Integer>();
 		
 		try{
@@ -41,11 +42,11 @@ public class Dvr{
 				System.err.println("Error loadFile failed");
 			}else{
 				
-				for(Entry<Character, Neighbour> current : neighbours.entrySet()){
-					System.out.println("neighbour:" + current.getValue().getName() + " : " + current.getValue().getLinkLength() + " : " + current.getValue().getPortNum());
+				//for(Entry<Character, Neighbour> current : neighbours.entrySet()){
+					//System.out.println("neighbour:" + current.getValue().getName() + " : " + current.getValue().getLinkLength() + " : " + current.getValue().getPortNum());
 				
-				}
-				System.out.println("Constructor closing");
+				//}
+				//System.out.println("Constructor closing");
 			}
 		}catch(IOException e){
 			e.printStackTrace();
@@ -70,6 +71,7 @@ public class Dvr{
 		//create seperate method for poison reverse (i.e 2 values);
 		
 		File configFile = new File("src/" + fileN);
+		//"src/" + fileN --> replace with fileN
 		if(! configFile.exists()){
 			
 			System.err.println("Error: File Not Found");
@@ -89,9 +91,9 @@ public class Dvr{
 					
 					String neighbourData[] = line.split(" ");
 					
-					for(String temp : neighbourData){
-						System.out.println(temp);
-					}		
+					//for(String temp : neighbourData){
+						//System.out.println(temp);
+					//}		
 					
 					char neighbourName = neighbourData[0].charAt(0);
 					int neighbourLink = Integer.parseInt(neighbourData[1]);
@@ -120,20 +122,33 @@ public class Dvr{
 		try{
 			String commands;
 			int temp = 0;
-			while(temp < 10){
+			while(true){
 				
 				byte[] buffer = new byte[256];
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 				
 				//socket will wait indefinitely until a packet is received
-				System.out.println("waiting on packets....");
+				//System.out.println("waiting on packets....");
 				socket.receive(packet);
 				String received = new String(packet.getData(), 0, packet.getLength());
-				System.out.println("recieved: " + received);
+				//System.out.println("recieved ");
 				updateDV(received);
-				printDV();
+				//printDV();
+				if(checkIfStable()){
+					if(! hasReturnedDV){
+						printDV();
+					}
+							//printDV();
+				}else{
+					//System.out.println("not stable, has returned");
+					if(hasReturnedDV){
+						//System.out.println("not stable, has returned");
+						//printDV();
+						hasReturnedDV = false;
+					}
+				}
 				
-				temp ++;
+				//temp ++;
 			}
 			//printDV();
 			
@@ -149,7 +164,7 @@ public class Dvr{
 		
 		try{
 			String[] receivedM = received.split("/");
-			boolean updateMinDist = false;
+			//boolean updateMinDist = false;
 			for ( String s : receivedM){
 				
 				if(! s.equals("")){
@@ -172,29 +187,38 @@ public class Dvr{
 							//if this node told another node is dead by neighbour, change data.
 							if(distToNode == -1){
 								Neighbour deadNode = neighbours.get(node);
-								deadNode.DeadNode();
-							}
-							///pass to neighbour class // compute
-							distToNode = distToNode + neighbours.get(fromNode).getLinkLength();
-							
-							boolean isNewShortest = false;
-							if(node != nodeN){
-								//case 1: node just discovered
-								if(! neighbours.containsKey(node)){
-									neighbours.put(node, new Neighbour(node, distToNode, -1));
+								if(deadNode.DeadNode()){
+									
+									hasReturnedDV = false;
 								}
-								//case 2: node is known. /// node
-								Neighbour n = neighbours.get(node);
+								removeAllDeadNodes(deadNode.getName());
+								//System.out.println("recieved -1");
+								//hasReturnedDV = false;
+							}else{
+							///pass to neighbour class // compute
+								distToNode = distToNode + neighbours.get(fromNode).getLinkLength();
 								
-								if(isNewShortest = n.checkAndAdd(fromNode, distToNode)){
-									updateMinDist = true;
+								//boolean isNewShortest = false;
+								if(node != nodeN){
+									//case 1: node just discovered
+									if(! neighbours.containsKey(node)){
+										neighbours.put(node, new Neighbour(node, distToNode, -1));
+										hasReturnedDV = false;
+									}
+									//case 2: node is known. /// node
+									Neighbour n = neighbours.get(node);
+									
+									if(n.checkAndAdd(fromNode, distToNode)){
+										//updateMinDist = true;
+										hasReturnedDV = false;
+									}
 								}
 							}
 						}
 					}
 				}
 			}
-			System.out.println("update complete");
+			//System.out.println("update complete");
 		}catch(IndexOutOfBoundsException e){
 			e.printStackTrace();
 		}
@@ -220,8 +244,10 @@ public class Dvr{
 					//increment HB to help check neighbouring nodes are onling.
 					n.incrementHB();
 					if(n.getHB() > 2){
-						System.out.println("heartbeat message counter detected neighbouring node failure : " + n.getName());
+						//System.out.println("heartbeat message counter detected neighbouring node failure : " + n.getName());
 						n.DeadNode();
+						removeAllDeadNodes(n.getName());
+						hasReturnedDV = false;
 						
 					}
 					String message = builder.toString();
@@ -237,7 +263,7 @@ public class Dvr{
 			e.printStackTrace();
 		}
 			
-		System.out.println("sending concluded");
+		//System.out.println("sending concluded");
 		
 		
 	}
@@ -252,18 +278,44 @@ public class Dvr{
 			System.out.println("|shortest: " + n.getShortestLength());
 			
 		}
+		hasReturnedDV = true;
 	}
-	
+	public boolean checkIfStable(){
+		boolean isStable = true;
+		for(Entry<Character, Neighbour> current : this.getNeighbours().entrySet()){
+			Neighbour n = current.getValue();
+			//System.out.print( n.getName() + ":" + n.getStableCtr());
+			if(n.getStableCtr() < 4){
+				isStable = false;
+			}
+		}
+		//System.out.println();
+		return isStable;
+		
+		
+	}
+	public void removeAllDeadNodes(char aName){
+		for(Entry<Character, Neighbour> current : this.getNeighbours().entrySet()){
+			Neighbour n = current.getValue();
+			n.removeDeadNodes(aName);
+			Character temp = n.getName();
+			
+			//just added
+			if(temp.equals(aName)){
+				n.DeadNode();
+			}
+		}
+	}
 	public static void main(String[] args) throws IOException{
 		
 		char nodeName = args[0].charAt(0);
 		int portNum = Integer.parseInt(args[1]);
 		String fileName = args[2];
-		System.out.println(nodeName + " " + portNum + " " + fileName);
+		//System.out.println(nodeName + " " + portNum + " " + fileName);
 		Dvr node = new Dvr(nodeName, portNum, fileName);
 		//Dvr node = new Dvr(nodeName, portNum, fileName);
 		
-		System.out.println("running dvr");
+		//System.out.println("running dvr");
 		node.runDvr();
 		
 			
